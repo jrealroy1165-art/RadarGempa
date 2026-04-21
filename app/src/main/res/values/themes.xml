@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema utama aplikasi -->
+    <style name="Theme.RadarGempa" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Tema Splash Screen -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/rb_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.RadarGempa</item>
+    </style>
+</resources>
