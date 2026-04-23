@@ -33,7 +33,7 @@ class AlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Memastikan aktivitas muncul di atas lock screen
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -49,7 +49,7 @@ class AlarmActivity : ComponentActivity() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         originalVolume = audioManager?.getStreamVolume(AudioManager.STREAM_ALARM) ?: 0
         
-        // Paksa Volume Maksimal
+
         val maxVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_ALARM) ?: 7
         audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
 
@@ -60,7 +60,7 @@ class AlarmActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                // Background Merah Berkedip
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -99,7 +99,7 @@ class AlarmActivity : ComponentActivity() {
                         Text("AKHIRI ALARM", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
                     
-                    // Terus paksa volume maksimal selama alarm aktif
+
                     LaunchedEffect(Unit) {
                         while(true) {
                             audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
@@ -134,7 +134,7 @@ class AlarmActivity : ComponentActivity() {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
-        // Kembalikan volume ke awal jika diinginkan (opsional)
-        // audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, originalVolume, 0)
+
+
     }
 }

@@ -44,6 +44,7 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -51,7 +52,7 @@ import retrofit2.http.GET
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-// --- MODEL DATA BMKG ---
+
 data class GempaResponse(
     @SerializedName("Infogempa") val infoGempa: InfoGempa
 )
@@ -67,10 +68,10 @@ data class DetailGempa(
     @SerializedName("Potensi") val potensi: String? = null,
     @SerializedName("Dirasakan") val dirasakan: String? = null,
     @SerializedName("Coordinates") val coordinates: String? = null,
-    var distance: Float = -1f // Jarak dalam KM
+    var distance: Float = -1f
 )
 
-// --- INTERFACE API BMKG ---
+
 interface BmkgApi {
     @GET("DataMKG/TEWS/gempadirasakan.json")
     suspend fun getDaftarGempa(): GempaResponse
@@ -144,6 +145,9 @@ fun RadarScreen() {
     var isLoading by remember { mutableStateOf(false) }
     var selectedGempa by remember { mutableStateOf<DetailGempa?>(null) }
     var showMapDialog by remember { mutableStateOf(false) }
+    var showNotifDialog by remember { mutableStateOf(false) }
+    var notifTitle by remember { mutableStateOf("") }
+    var notifMessage by remember { mutableStateOf("") }
 
     val backgroundColor by animateColorAsState(
         targetValue = if (isEmergencyMode) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.background,
@@ -162,11 +166,11 @@ fun RadarScreen() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-            userLocationStr = "Izin diberikan"
+            userLocationStr = "Izin lokasi diberikan"
         }
     }
 
-    // Fungsi Hitung Jarak
+
     fun calculateDistance(gempaCoords: String?, userLat: Double, userLng: Double): Float {
         if (gempaCoords == null) return -1f
         val parts = gempaCoords.split(",")
@@ -177,15 +181,15 @@ fun RadarScreen() {
         
         val results = FloatArray(1)
         Location.distanceBetween(userLat, userLng, gLat, gLng, results)
-        return results[0] / 1000 // Konversi ke KM
+        return results[0] / 1000
     }
 
-    // Fungsi Refresh
+
     val refreshData = {
         isLoading = true
         coroutineScope.launch {
             try {
-                // 1. Ambil Lokasi User
+                delay(2000)
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
                         if (loc != null) {
@@ -199,18 +203,18 @@ fun RadarScreen() {
                     launcher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
                 }
 
-                // 2. Ambil Data Gempa
+
                 val response = retrofit.getDaftarGempa()
                 val list = response.infoGempa.gempa
                 
-                // 3. Hitung Jarak jika lokasi tersedia
+
                 currentUserLatLng?.let { user ->
                     list.forEach { gempa ->
                         gempa.distance = calculateDistance(gempa.coordinates, user.latitude, user.longitude)
                     }
                 }
 
-                // 4. Urutkan: Terdekat di paling atas
+
                 if (list.isNotEmpty() && currentUserLatLng != null) {
                     val nearest = list.filter { it.distance > 0 }.minByOrNull { it.distance }
                     if (nearest != null) {
@@ -234,6 +238,19 @@ fun RadarScreen() {
     }
 
     LaunchedEffect(Unit) {
+        val intent = (context as? android.app.Activity)?.intent
+        if (intent?.getBooleanExtra("from_notification", false) == true) {
+            notifTitle = intent.getStringExtra("notif_title") ?: ""
+            notifMessage = intent.getStringExtra("notif_message") ?: ""
+            showNotifDialog = true
+        }
+
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        launcher.launch(permissions.toTypedArray())
+
         refreshData()
         FirebaseMessaging.getInstance().subscribeToTopic("gempa")
     }
@@ -246,7 +263,7 @@ fun RadarScreen() {
             
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Saklar Radar & Mode Siaga
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = if (isRadarEnabled) Color(0xFFE8F5E9) else Color(0xFFF5F5F5))) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -274,9 +291,9 @@ fun RadarScreen() {
             
             Spacer(modifier = Modifier.height(8.dp))
 
-            // DAFTAR GEMPA
+
             Box(modifier = Modifier.weight(1f)) {
-                if (isLoading && daftarGempa.isEmpty()) {
+                if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -304,7 +321,17 @@ fun RadarScreen() {
         }
     }
 
-    // Dialog Peta (Solusi 2: Membuka Aplikasi Google Maps)
+    if (showNotifDialog) {
+        AlertDialog(
+            onDismissRequest = { showNotifDialog = false },
+            confirmButton = {
+                Button(onClick = { showNotifDialog = false }) { Text("OKE") }
+            },
+            title = { Text(notifTitle, fontWeight = FontWeight.Bold, color = Color.Red) },
+            text = { Text(notifMessage) }
+        )
+    }
+
     if (showMapDialog && selectedGempa != null) {
         AlertDialog(
             onDismissRequest = { showMapDialog = false },

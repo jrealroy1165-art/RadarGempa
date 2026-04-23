@@ -29,22 +29,22 @@ class RadarWorker(appContext: Context, workerParams: WorkerParameters) :
                 .build()
                 .create(BmkgApi::class.java)
 
-            // Mengambil daftar gempa terbaru
+
             val response = retrofit.getDaftarGempa()
             val listGempa = response.infoGempa.gempa
 
             if (listGempa.isEmpty()) return Result.success()
 
-            // Ambil gempa terbaru (paling atas dari BMKG)
+
             val gempaTerbaru = listGempa[0]
 
-            // Ambil lokasi user di latar belakang
+
             val userLoc = getCurrentLocation()
             
             var jarakTerdekat = -1.0
             var gempaPalingRelevan = gempaTerbaru
 
-            // Cek apakah ada gempa yang sangat dekat (< 100km) di daftar 15 gempa terakhir
+
             if (userLoc != null) {
                 for (g in listGempa) {
                     val d = hitungJarak(userLoc.latitude, userLoc.longitude, g.coordinates)
@@ -55,7 +55,7 @@ class RadarWorker(appContext: Context, workerParams: WorkerParameters) :
                     }
                 }
                 
-                // Jika tidak ada yang < 100km, hitung jarak untuk gempa terbaru saja
+
                 if (jarakTerdekat < 0) {
                     jarakTerdekat = hitungJarak(userLoc.latitude, userLoc.longitude, gempaTerbaru.coordinates)
                 }
@@ -63,18 +63,18 @@ class RadarWorker(appContext: Context, workerParams: WorkerParameters) :
 
             val pesanJarak = if (jarakTerdekat >= 0) " (Jarak: ${String.format(Locale.getDefault(), "%.1f", jarakTerdekat)} km)" else ""
             
-            // Logika Notifikasi: Hanya jika Magnitude >= 4.5 atau sangat dekat
+
             val mag = gempaPalingRelevan.magnitude.toDoubleOrNull() ?: 0.0
             if (mag >= 4.5 || (jarakTerdekat in 0.0..50.0)) {
                 
                 if (jarakTerdekat in 0.0..20.0 && mag >= 4.0) {
-                    // Gempa sangat dekat & berbahaya -> Buka Activity Alarm
+
                     startAlarmActivity(
                         "BAHAYA GEMPA DEKAT!",
                         "Gempa ${gempaPalingRelevan.magnitude} SR terdeteksi di ${gempaPalingRelevan.wilayah}. $pesanJarak"
                     )
                 } else {
-                    // Kirim notifikasi biasa
+
                     showNotification(
                         "Peringatan Gempa Terkini",
                         "Gempa ${gempaPalingRelevan.magnitude} SR - ${gempaPalingRelevan.wilayah}.$pesanJarak"
@@ -117,7 +117,7 @@ class RadarWorker(appContext: Context, workerParams: WorkerParameters) :
         val lat2 = parts[0].toDoubleOrNull() ?: return -1.0
         val lon2 = parts[1].toDoubleOrNull() ?: return -1.0
 
-        val r = 6371 // Radius bumi dalam KM
+        val r = 6371
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
         val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)

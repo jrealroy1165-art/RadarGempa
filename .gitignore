@@ -13,6 +13,8 @@
 .externalNativeBuild
 .cxx
 
-# Secrets
-/backend/*.json
+# Secrets (Hanya kunci akses, bukan konfigurasi)
+/backend/service-account.json
+/backend/radar-gempa-*.json
 google-services.json
+

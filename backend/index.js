@@ -1,11 +1,16 @@
 const admin = require('firebase-admin');
 const axios = require('axios');
-const express = require('express'); // Tambahan untuk Web Server
+const express = require('express');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 7860;
 
-// 1. KONEKSI KE FIREBASE
-const serviceAccount = require("./service-account.json");
+let serviceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  serviceAccount = require("./service-account.json");
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -16,7 +21,6 @@ console.log("✅ Server Radar Gempa Aktif & Terhubung ke Firebase");
 let lastGempaId = "";
 let lastStatus = "Memulai pemantauan...";
 
-// --- FITUR WEB SERVER (Agar bisa dibuka di browser) ---
 app.get('/', (req, res) => {
   res.send(`
     <html>
@@ -35,7 +39,6 @@ app.listen(port, () => {
   console.log(`🌐 Dashboard server bisa dibuka di http://localhost:${port}`);
 });
 
-// 2. FUNGSI UNTUK CEK BMKG
 async function checkBMKG() {
   try {
     const response = await axios.get('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json');

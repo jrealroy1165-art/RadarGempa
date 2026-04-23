@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
+import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
@@ -35,7 +36,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 handleGempaData(title, body, coords, magnitude)
             } else {
-                // Fallback jika pakai notification payload biasa
+
                 val title = remoteMessage.notification?.title ?: "PERINGATAN GEMPA!"
                 val message = remoteMessage.notification?.body ?: "Terdeteksi aktivitas gempa terbaru."
                 showNotification(title, message)
@@ -55,7 +56,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val finalTitle = if (jarak in 0.0..50.0) "⚠️ BAHAYA: GEMPA DEKAT!" else title
         val finalBody = "$body$pesanJarak"
 
-        // Logika Alarm Keras: Jarak < 30km DAN Magnitude > 4.0
+
         if (jarak in 0.0..30.0 && magnitude >= 4.0) {
             startAlarmActivity(finalTitle, finalBody)
         } else {
@@ -92,7 +93,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val lat2 = parts[0].toDoubleOrNull() ?: return -1.0
         val lon2 = parts[1].toDoubleOrNull() ?: return -1.0
 
-        val r = 6371 // Radius bumi dalam KM
+        val r = 6371
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
         val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
@@ -104,6 +105,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val sharedPref = getSharedPreferences("radar_prefs", Context.MODE_PRIVATE)
         val isEmergency = sharedPref.getBoolean("emergency_mode", false)
         val channelId = "radar_gempa_channel"
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("from_notification", true)
+            putExtra("notif_title", title)
+            putExtra("notif_message", message)
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val ringtoneUri = if (isEmergency) {
             android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
@@ -120,6 +133,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setSound(ringtoneUri)
             .setVibrate(if (isEmergency) longArrayOf(0, 1000, 500, 1000, 500, 1000) else longArrayOf(0, 500))
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
